@@ -13,6 +13,8 @@
     display: flex;
     flex-direction: column;
   }
+
+  /* ---------- Header ---------- */
   header {
     padding: 16px 24px;
     background: #ffffff;
@@ -21,7 +23,93 @@
     font-weight: 700;
     color: #2563eb;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
+  #logout-btn {
+    display: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    background: #f1f5f9;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  /* ---------- Auth Screen ---------- */
+  #auth-screen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #auth-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 32px 24px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+  #auth-box h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #1e293b;
+  }
+  #auth-box input {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    font-size: 15px;
+    outline: none;
+  }
+  #auth-box input:focus { border-color: #2563eb; }
+  #auth-error {
+    color: #dc2626;
+    font-size: 13px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .auth-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  #login-btn { background: #2563eb; color: white; }
+  #login-btn:hover { background: #1d4ed8; }
+  #signup-btn { background: #f1f5f9; color: #1e293b; }
+  #signup-btn:hover { background: #e2e8f0; }
+  #google-btn {
+    background: white;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  #google-btn:hover { background: #f8fafc; }
+  .divider {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+    margin: 14px 0;
+  }
+
+  /* ---------- Chat App (hidden until logged in) ---------- */
+  #app-screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
   #chat-container {
     flex: 1;
     overflow-y: auto;
@@ -89,16 +177,122 @@
 </head>
 <body>
 
-<header>🤖 MENTIX AI</header>
+<header>
+  🤖 MENTIX AI
+  <button id="logout-btn">লগ আউট</button>
+</header>
 
-<div id="chat-container"></div>
-
-<div id="input-area">
-  <input type="text" id="user-input" placeholder="কিছু জিজ্ঞেস করো..." />
-  <button id="send-btn">পাঠাও</button>
+<!-- ---------- Auth Screen ---------- -->
+<div id="auth-screen">
+  <div id="auth-box">
+    <h2 id="auth-title">লগইন করো</h2>
+    <div id="auth-error"></div>
+    <input type="email" id="email-input" placeholder="ইমেইল" />
+    <input type="password" id="password-input" placeholder="পাসওয়ার্ড" />
+    <button class="auth-btn" id="login-btn">লগইন</button>
+    <button class="auth-btn" id="signup-btn">নতুন অ্যাকাউন্ট বানাও</button>
+    <div class="divider">অথবা</div>
+    <button class="auth-btn" id="google-btn">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.2l-6.2-5.2C29.3 35.4 26.8 36 24 36c-5.3 0-9.6-3.4-11.3-8.1l-6.5 5C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C40.8 36 44 30.5 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+      Google দিয়ে লগইন
+    </button>
+  </div>
 </div>
 
-<script>
+<!-- ---------- Chat App ---------- -->
+<div id="app-screen">
+  <div id="chat-container"></div>
+  <div id="input-area">
+    <input type="text" id="user-input" placeholder="কিছু জিজ্ঞেস করো..." />
+    <button id="send-btn">পাঠাও</button>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import {
+    getAuth,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signInWithPopup,
+    GoogleAuthProvider,
+    signOut,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQzxWv4Pgoxc9SQfvhMyEcCXmidBSYp1g",
+    authDomain: "mentix-ai-2b626.firebaseapp.com",
+    projectId: "mentix-ai-2b626",
+    storageBucket: "mentix-ai-2b626.firebasestorage.app",
+    messagingSenderId: "476825175093",
+    appId: "1:476825175093:web:964e8bbc5cf8edcd0c9d7c"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
+
+  const authScreen = document.getElementById('auth-screen');
+  const appScreen = document.getElementById('app-screen');
+  const logoutBtn = document.getElementById('logout-btn');
+  const authError = document.getElementById('auth-error');
+
+  function showError(msg) {
+    authError.textContent = msg;
+    authError.style.display = 'block';
+  }
+  function clearError() {
+    authError.style.display = 'none';
+  }
+
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    clearError();
+    const email = document.getElementById('email-input').value.trim();
+    const password = document.getElementById('password-input').value;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      showError('লগইন ব্যর্থ: ' + err.message);
+    }
+  });
+
+  document.getElementById('signup-btn').addEventListener('click', async () => {
+    clearError();
+    const email = document.getElementById('email-input').value.trim();
+    const password = document.getElementById('password-input').value;
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      showError('অ্যাকাউন্ট তৈরি ব্যর্থ: ' + err.message);
+    }
+  });
+
+  document.getElementById('google-btn').addEventListener('click', async () => {
+    clearError();
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      showError('Google লগইন ব্যর্থ: ' + err.message);
+    }
+  });
+
+  logoutBtn.addEventListener('click', () => signOut(auth));
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      authScreen.style.display = 'none';
+      appScreen.style.display = 'flex';
+      logoutBtn.style.display = 'inline-block';
+    } else {
+      authScreen.style.display = 'flex';
+      appScreen.style.display = 'none';
+      logoutBtn.style.display = 'none';
+    }
+  });
+
+  // ---------- Chat logic ----------
   const BACKEND_URL = 'https://my-ai-app-ahk7.onrender.com/api/chat';
 
   const chatContainer = document.getElementById('chat-container');
