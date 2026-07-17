@@ -39,6 +39,26 @@ const tools = [
   },
 ];
 
+async function callGroq(messages, useTools) {
+  const body = {
+    model: 'llama-3.3-70b-versatile',
+    messages,
+  };
+  if (useTools) {
+    body.tools = tools;
+    body.tool_choice = 'auto';
+  }
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, history } = req.body;
@@ -47,27 +67,22 @@ app.post('/api/chat', async (req, res) => {
     let messages = [
       {
         role: 'system',
-        content: `আজকের তারিখ: ${new Date().toDateString()}। তোমার ট্রেনিং ডেটা পুরনো এবং তুমি সাম্প্রতিক ঘটনা, প্রধানমন্ত্রী/প্রেসিডেন্ট/সরকার প্রধান, নির্বাচনের ফলাফল, বা যেকোনো সময়-সংবেদনশীল তথ্য সম্পর্কে ভুল জানতে পারো। এই ধরনের যেকোনো প্রশ্নে নিজের স্মৃতি থেকে উত্তর দেওয়ার আগে অবশ্যই web_search টুল কল করে যাচাই করো, তুমি "নিশ্চিত" থাকলেও।`,
+        content: `আজকের তারিখ: ${new Date().toDateString()}। তোমার ট্রেনিং ডেটা পুরনো এবং তুমি সাম্প্রতিক ঘটনা, প্রধানমন্ত্রী/প্রেসিডেন্ট/সরকার প্রধান, নির্বাচনের ফলাফল সম্পর্কে ভুল জানতে পারো। এই ধরনের প্রশ্নে web_search টুল ব্যবহার করো।`,
       },
       ...(history || []),
       { role: 'user', content: message },
     ];
 
-    let response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages,
-        tools,
-      }),
-    });
-    let data = await response.json();
+    let data = await callGroq(messages, true);
 
-    if (data.error) return res.status(500).json({ error: data.error.message });
+    // যদি tool call ব্যর্থ হয়, সাধারণ (সার্চ ছাড়া) উত্তর নাও
+    if (data.error) {
+      data = await callGroq(messages, false);
+    }
+
+    if (data.error) {
+      return res.status(500).json({ error: data.error.message });
+    }
 
     const choice = data.choices[0];
 
@@ -83,18 +98,10 @@ app.post('/api/chat', async (req, res) => {
         content: searchResults,
       });
 
-      response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages,
-        }),
-      });
-      data = await response.json();
+      data = await callGroq(messages, false);
+      if (data.error) {
+        return res.status(500).json({ error: data.error.message });
+      }
     }
 
     const reply = data.choices?.[0]?.message?.content || 'কোনো উত্তর পাওয়া যায়নি';
