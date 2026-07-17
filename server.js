@@ -39,22 +39,19 @@ const tools = [
   },
 ];
 
-async function callGroq(messages, useTools) {
-  const body = {
-    model: 'openai/gpt-oss-120b',
-    messages,
-  };
-  if (useTools) {
-    body.tools = tools;
-    body.tool_choice = 'required';
-  }
+async function callGroq(messages, toolChoice) {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      model: 'openai/gpt-oss-120b',
+      messages,
+      tools,
+      tool_choice: toolChoice,
+    }),
   });
   return res.json();
 }
@@ -67,22 +64,18 @@ app.post('/api/chat', async (req, res) => {
     let messages = [
       {
         role: 'system',
-        content: `আজকের তারিখ: ${new Date().toDateString()}। তোমার ট্রেনিং ডেটা পুরনো এবং তুমি সাম্প্রতিক ঘটনা, প্রধানমন্ত্রী/প্রেসিডেন্ট/সরকার প্রধান, নির্বাচনের ফলাফল সম্পর্কে ভুল জানতে পারো। এই ধরনের প্রশ্নে web_search টুল ব্যবহার করো।`,
+        content: `আজকের তারিখ: ${new Date().toDateString()}। তোমার ট্রেনিং ডেটা পুরনো এবং তুমি সাম্প্রতিক ঘটনা, প্রধানমন্ত্রী/প্রেসিডেন্ট/সরকার প্রধান সম্পর্কে ভুল জানতে পারো। এই ধরনের প্রশ্নে web_search টুল ব্যবহার করো।`,
       },
       ...(history || []),
       { role: 'user', content: message },
     ];
 
-    let data = await callGroq(messages, true);
-
-    // যদি tool call ব্যর্থ হয়, সাধারণ (সার্চ ছাড়া) উত্তর নাও
-    if (data.error) {
-      data = await callGroq(messages, false);
-    }
+    let data = await callGroq(messages, 'required');
 
     if (data.error) {
-      return res.status(500).json({ error: data.error.message });
+      data = await callGroq(messages, 'none');
     }
+    if (data.error) return res.status(500).json({ error: data.error.message });
 
     const choice = data.choices[0];
 
@@ -98,10 +91,8 @@ app.post('/api/chat', async (req, res) => {
         content: searchResults,
       });
 
-      data = await callGroq(messages, false);
-      if (data.error) {
-        return res.status(500).json({ error: data.error.message });
-      }
+      data = await callGroq(messages, 'none');
+      if (data.error) return res.status(500).json({ error: data.error.message });
     }
 
     const reply = data.choices?.[0]?.message?.content || 'কোনো উত্তর পাওয়া যায়নি';
