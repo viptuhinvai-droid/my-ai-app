@@ -258,6 +258,9 @@
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
     signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc
+  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBQzxWv4Pgoxc9SQfvhMyEcCXmidBSYp1g",
@@ -270,7 +273,9 @@
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  const db = getFirestore(app);
   const googleProvider = new GoogleAuthProvider();
+  let currentUserId = null;
 
   const authScreen = document.getElementById('auth-screen');
   const appScreen = document.getElementById('app-screen');
@@ -304,15 +309,43 @@
 
   logoutBtn.addEventListener('click', () => signOut(auth));
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
+      currentUserId = user.uid;
       authScreen.style.display = 'none';
       appScreen.style.display = 'flex';
+      await loadChatHistory();
     } else {
+      currentUserId = null;
       authScreen.style.display = 'flex';
       appScreen.style.display = 'none';
     }
   });
+
+  async function loadChatHistory() {
+    if (!currentUserId) return;
+    try {
+      const snap = await getDoc(doc(db, 'chats', currentUserId));
+      chatContainer.innerHTML = '';
+      if (snap.exists() && Array.isArray(snap.data().messages)) {
+        history = snap.data().messages;
+        history.forEach(m => addMessage(m.role === 'user' ? 'user' : 'assistant', m.content));
+      } else {
+        history = [];
+      }
+    } catch (err) {
+      console.error('History load failed:', err);
+    }
+  }
+
+  async function saveChatHistory() {
+    if (!currentUserId) return;
+    try {
+      await setDoc(doc(db, 'chats', currentUserId), { messages: history });
+    } catch (err) {
+      console.error('History save failed:', err);
+    }
+  }
 
   const themeToggle = document.getElementById('theme-toggle');
   const themeLabel = document.getElementById('theme-label');
@@ -328,9 +361,10 @@
     sidebar.classList.toggle('hidden');
   });
 
-  document.getElementById('new-chat-btn').addEventListener('click', () => {
+  document.getElementById('new-chat-btn').addEventListener('click', async () => {
     history = [];
     chatContainer.innerHTML = '';
+    await saveChatHistory();
   });
 
   const BACKEND_URL = 'https://my-ai-app-ahk7.onrender.com/api/chat';
@@ -377,6 +411,7 @@
       } else {
         addMessage('assistant', data.reply);
         history.push({ role: 'assistant', content: data.reply });
+        await saveChatHistory();
       }
     } catch (err) {
       typingDiv.remove();
