@@ -39,19 +39,22 @@ const tools = [
   },
 ];
 
-async function callGroq(messages, toolChoice) {
+async function callGroq(messages, useTools) {
+  const body = {
+    model: 'openai/gpt-oss-120b',
+    messages,
+  };
+  if (useTools) {
+    body.tools = tools;
+    body.tool_choice = 'required';
+  }
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
     },
-    body: JSON.stringify({
-      model: 'openai/gpt-oss-120b',
-      messages,
-      tools,
-      tool_choice: toolChoice,
-    }),
+    body: JSON.stringify(body),
   });
   return res.json();
 }
@@ -70,10 +73,10 @@ app.post('/api/chat', async (req, res) => {
       { role: 'user', content: message },
     ];
 
-    let data = await callGroq(messages, 'required');
+    let data = await callGroq(messages, true);
 
     if (data.error) {
-      data = await callGroq(messages, 'none');
+      data = await callGroq(messages, false);
     }
     if (data.error) return res.status(500).json({ error: data.error.message });
 
@@ -91,7 +94,7 @@ app.post('/api/chat', async (req, res) => {
         content: searchResults,
       });
 
-      data = await callGroq(messages, 'none');
+      data = await callGroq(messages, false);
       if (data.error) return res.status(500).json({ error: data.error.message });
     }
 
