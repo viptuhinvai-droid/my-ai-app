@@ -49,9 +49,23 @@
     flex-direction: column;
     padding: 16px 12px;
     flex-shrink: 0;
-    transition: margin-left 0.2s ease;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
   }
-  #sidebar.hidden { margin-left: -260px; }
+  #sidebar.show { transform: translateX(0); }
+  #sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 25;
+  }
+  #sidebar-backdrop.show { display: block; }
   #sidebar-header {
     display: flex;
     align-items: center;
@@ -92,7 +106,7 @@
   }
   .sidebar-btn:hover { background: var(--border); color: var(--text); }
 
-  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%; }
   header {
     padding: 12px 20px;
     border-bottom: 1px solid var(--border);
@@ -349,6 +363,7 @@
 </head>
 <body>
 
+<div id="sidebar-backdrop"></div>
 <div id="sidebar">
   <div id="sidebar-header">🤖 MENTIX AI</div>
   <button id="new-chat-btn">+ নতুন চ্যাট</button>
@@ -574,8 +589,14 @@
   });
 
   const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
   document.getElementById('menu-toggle').addEventListener('click', () => {
-    sidebar.classList.toggle('hidden');
+    sidebar.classList.toggle('show');
+    backdrop.classList.toggle('show');
+  });
+  backdrop.addEventListener('click', () => {
+    sidebar.classList.remove('show');
+    backdrop.classList.remove('show');
   });
 
   document.getElementById('new-chat-btn').addEventListener('click', async () => {
