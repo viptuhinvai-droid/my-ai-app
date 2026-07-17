@@ -23,6 +23,7 @@ app.post('/api/chat', async (req, res) => {
       body: JSON.stringify({
         model: 'openai/gpt-oss-120b',
         messages: [
+          { role: 'system', content: 'উত্তর সবসময় সুন্দরভাবে গুছিয়ে দাও — প্রয়োজনে হেডিং, বুলেট পয়েন্ট/লিস্ট, বোল্ড টেক্সট ব্যবহার করে Markdown ফরম্যাটে লেখো, যাতে পড়তে সহজ ও প্রফেশনাল লাগে। শুধু ছোট উত্তরের ক্ষেত্রে সাধারণ প্যারাগ্রাফ যথেষ্ট।' },
           ...(history || []),
           { role: 'user', content: message },
         ],
