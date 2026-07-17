@@ -46,7 +46,7 @@ async function callGroq(messages, useTools) {
   };
   if (useTools) {
     body.tools = tools;
-    body.tool_choice = 'auto';
+    body.tool_choice = 'required';
   }
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
