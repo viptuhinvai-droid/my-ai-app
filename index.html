@@ -207,6 +207,97 @@
   }
   #welcome-screen .icon { font-size: 40px; margin-bottom: 12px; }
   #welcome-screen h1 { font-size: 26px; font-weight: 600; color: var(--text); }
+
+  /* ---------- Profile widget (sidebar bottom) ---------- */
+  #profile-widget {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  #profile-widget:hover { background: var(--border); }
+  #profile-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  #profile-info { overflow: hidden; }
+  #profile-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #profile-age { font-size: 12px; color: var(--text-muted); }
+
+  /* ---------- Profile panel (popup) ---------- */
+  #profile-panel {
+    display: none;
+    position: absolute;
+    bottom: 60px;
+    left: 12px;
+    width: 230px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 20;
+  }
+  #profile-panel.show { display: block; }
+  .panel-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .panel-item:hover { background: var(--border); }
+
+  /* ---------- Complete profile modal ---------- */
+  #profile-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  #profile-modal-overlay.show { display: flex; }
+  #profile-modal {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 340px;
+  }
+  #profile-modal h3 { margin-bottom: 16px; text-align: center; }
+  #profile-modal input {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+  }
+  #profile-modal button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+  }
   .user { align-self: flex-end; background: var(--bubble-user); color: white; border-bottom-right-radius: 4px; }
   .assistant { align-self: flex-start; background: var(--bubble-assistant); color: var(--text); border-bottom-left-radius: 4px; }
   .typing { align-self: flex-start; color: var(--text-muted); font-style: italic; padding: 8px 16px; }
@@ -251,7 +342,18 @@
   <button class="sidebar-btn" id="theme-toggle">
     <span id="theme-label">🌙 ডার্ক মোড</span>
   </button>
-  <button class="sidebar-btn" id="logout-btn">🚪 লগ আউট</button>
+  <div style="position:relative;">
+    <div id="profile-widget">
+      <div id="profile-avatar">?</div>
+      <div id="profile-info">
+        <div id="profile-name">...</div>
+        <div id="profile-age"></div>
+      </div>
+    </div>
+    <div id="profile-panel">
+      <div class="panel-item" id="logout-btn">🚪 লগ আউট</div>
+    </div>
+  </div>
 </div>
 
 <div id="main">
@@ -286,6 +388,15 @@
       <input type="text" id="user-input" placeholder="কিছু জিজ্ঞেস করো..." />
       <button id="send-btn">পাঠাও</button>
     </div>
+  </div>
+</div>
+
+<div id="profile-modal-overlay">
+  <div id="profile-modal">
+    <h3>তোমার সম্পর্কে বলো</h3>
+    <input type="text" id="profile-name-input" placeholder="তোমার নাম" />
+    <input type="number" id="profile-age-input" placeholder="তোমার বয়স" min="1" max="120" />
+    <button id="profile-save-btn">সেভ করো</button>
   </div>
 </div>
 
@@ -349,17 +460,56 @@
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUserId = user.uid;
-      const name = user.displayName || (user.email ? user.email.split('@')[0] : 'বন্ধু');
-      document.getElementById('welcome-text').textContent = `স্বাগতম, ${name}`;
       authScreen.style.display = 'none';
       appScreen.style.display = 'flex';
-      await loadChatHistory();
+      await checkProfile(user);
     } else {
       currentUserId = null;
       authScreen.style.display = 'flex';
       appScreen.style.display = 'none';
     }
   });
+
+  const profileModalOverlay = document.getElementById('profile-modal-overlay');
+  const profileNameInput = document.getElementById('profile-name-input');
+  const profileAgeInput = document.getElementById('profile-age-input');
+
+  async function checkProfile(user) {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    if (snap.exists() && snap.data().name && snap.data().age) {
+      applyProfile(snap.data());
+      await loadChatHistory();
+    } else {
+      profileNameInput.value = user.displayName || '';
+      profileModalOverlay.classList.add('show');
+    }
+  }
+
+  function applyProfile(profile) {
+    document.getElementById('profile-name').textContent = profile.name;
+    document.getElementById('profile-age').textContent = `বয়স: ${profile.age}`;
+    document.getElementById('profile-avatar').textContent = profile.name.charAt(0).toUpperCase();
+    document.getElementById('welcome-text').textContent = `স্বাগতম, ${profile.name}`;
+  }
+
+  document.getElementById('profile-save-btn').addEventListener('click', async () => {
+    const name = profileNameInput.value.trim();
+    const age = profileAgeInput.value.trim();
+    if (!name || !age) return;
+
+    await setDoc(doc(db, 'users', currentUserId), { name, age });
+    applyProfile({ name, age });
+    profileModalOverlay.classList.remove('show');
+    await loadChatHistory();
+  });
+
+  const profileWidget = document.getElementById('profile-widget');
+  const profilePanel = document.getElementById('profile-panel');
+  profileWidget.addEventListener('click', (e) => {
+    e.stopPropagation();
+    profilePanel.classList.toggle('show');
+  });
+  document.addEventListener('click', () => profilePanel.classList.remove('show'));
 
   const welcomeScreen = document.getElementById('welcome-screen');
 
