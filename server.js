@@ -11,7 +11,7 @@ app.post('/api/chat', async (req, res) => {
     const { message, history } = req.body;
 
     if (!message) {
-      return res.status(400).json({ error: 'মেসেজ পাঠাতে হবে' });
+      return res.status(400).json({ error: 'Message is required' });
     }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -23,7 +23,7 @@ app.post('/api/chat', async (req, res) => {
       body: JSON.stringify({
         model: 'openai/gpt-oss-120b',
         messages: [
-          { role: 'system', content: 'উত্তর সবসময় সুন্দরভাবে গুছিয়ে দাও — প্রয়োজনে হেডিং, বুলেট পয়েন্ট/লিস্ট, বোল্ড টেক্সট ব্যবহার করে Markdown ফরম্যাটে লেখো, যাতে পড়তে সহজ ও প্রফেশনাল লাগে। শুধু ছোট উত্তরের ক্ষেত্রে সাধারণ প্যারাগ্রাফ যথেষ্ট।' },
+          { role: 'system', content: 'Keep answers concise, clear, and relevant. Use headings/bullets/bold when helpful, but never add unnecessary intros, conclusions, extra emojis, or a "final thoughts" section. Always reply in the same language the user wrote in.' },
           ...(history || []),
           { role: 'user', content: message },
         ],
@@ -37,16 +37,16 @@ app.post('/api/chat', async (req, res) => {
       return res.status(500).json({ error: data.error.message });
     }
 
-    const reply = data.choices?.[0]?.message?.content || 'কোনো উত্তর পাওয়া যায়নি';
+    const reply = data.choices?.[0]?.message?.content || 'No response received';
 
     res.json({ reply });
   } catch (err) {
     console.error('Server error:', err);
-    res.status(500).json({ error: 'সার্ভারে সমস্যা হয়েছে' });
+    res.status(500).json({ error: 'Server error occurred' });
   }
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`✅ Server চলছে: http://localhost:${PORT}`);
+  console.log(`✅ Server running: http://localhost:${PORT}`);
 });
