@@ -195,6 +195,18 @@
     margin: 8px 0;
   }
   .assistant pre code { background: none; padding: 0; }
+
+  #welcome-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+  }
+  #welcome-screen .icon { font-size: 40px; margin-bottom: 12px; }
+  #welcome-screen h1 { font-size: 26px; font-weight: 600; color: var(--text); }
   .user { align-self: flex-end; background: var(--bubble-user); color: white; border-bottom-right-radius: 4px; }
   .assistant { align-self: flex-start; background: var(--bubble-assistant); color: var(--text); border-bottom-left-radius: 4px; }
   .typing { align-self: flex-start; color: var(--text-muted); font-style: italic; padding: 8px 16px; }
@@ -265,7 +277,11 @@
   </div>
 
   <div id="app-screen">
-    <div id="chat-container"></div>
+    <div id="welcome-screen">
+      <div class="icon">✨</div>
+      <h1 id="welcome-text">স্বাগতম</h1>
+    </div>
+    <div id="chat-container" style="display:none;"></div>
     <div id="input-area">
       <input type="text" id="user-input" placeholder="কিছু জিজ্ঞেস করো..." />
       <button id="send-btn">পাঠাও</button>
@@ -333,6 +349,8 @@
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUserId = user.uid;
+      const name = user.displayName || (user.email ? user.email.split('@')[0] : 'বন্ধু');
+      document.getElementById('welcome-text').textContent = `স্বাগতম, ${name}`;
       authScreen.style.display = 'none';
       appScreen.style.display = 'flex';
       await loadChatHistory();
@@ -343,16 +361,29 @@
     }
   });
 
+  const welcomeScreen = document.getElementById('welcome-screen');
+
+  function showWelcome() {
+    welcomeScreen.style.display = 'flex';
+    chatContainer.style.display = 'none';
+  }
+  function showChat() {
+    welcomeScreen.style.display = 'none';
+    chatContainer.style.display = 'flex';
+  }
+
   async function loadChatHistory() {
     if (!currentUserId) return;
     try {
       const snap = await getDoc(doc(db, 'chats', currentUserId));
       chatContainer.innerHTML = '';
-      if (snap.exists() && Array.isArray(snap.data().messages)) {
+      if (snap.exists() && Array.isArray(snap.data().messages) && snap.data().messages.length > 0) {
         history = snap.data().messages;
         history.forEach(m => addMessage(m.role === 'user' ? 'user' : 'assistant', m.content));
+        showChat();
       } else {
         history = [];
+        showWelcome();
       }
     } catch (err) {
       console.error('History load failed:', err);
@@ -385,6 +416,7 @@
   document.getElementById('new-chat-btn').addEventListener('click', async () => {
     history = [];
     chatContainer.innerHTML = '';
+    showWelcome();
     await saveChatHistory();
   });
 
@@ -411,6 +443,7 @@
     const text = userInput.value.trim();
     if (!text) return;
 
+    showChat();
     addMessage('user', text);
     history.push({ role: 'user', content: text });
     userInput.value = '';
