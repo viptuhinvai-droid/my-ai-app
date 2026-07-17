@@ -6,99 +6,38 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-async function webSearch(query) {
-  const res = await fetch('https://api.tavily.com/search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      api_key: process.env.TAVILY_API_KEY,
-      query,
-      max_results: 4,
-    }),
-  });
-  const data = await res.json();
-  return (data.results || [])
-    .map(r => `${r.title}: ${r.content}`)
-    .join('\n\n');
-}
-
-const tools = [
-  {
-    type: 'function',
-    function: {
-      name: 'web_search',
-      description: 'বর্তমান/সাম্প্রতিক তথ্য, খবর, বা এমন কিছু জানতে ব্যবহার করো যা তোমার ট্রেনিং ডেটার পরে ঘটেছে',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: { type: 'string', description: 'সার্চ করার বিষয়' },
-        },
-        required: ['query'],
-      },
-    },
-  },
-];
-
-async function callGroq(messages, useTools) {
-  const body = {
-    model: 'openai/gpt-oss-120b',
-    messages,
-  };
-  if (useTools) {
-    body.tools = tools;
-    body.tool_choice = 'required';
-  }
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-  return res.json();
-}
-
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, history } = req.body;
-    if (!message) return res.status(400).json({ error: 'মেসেজ পাঠাতে হবে' });
 
-    let messages = [
-      {
-        role: 'system',
-        content: `আজকের তারিখ: ${new Date().toDateString()}। তোমার ট্রেনিং ডেটা পুরনো এবং তুমি সাম্প্রতিক ঘটনা, প্রধানমন্ত্রী/প্রেসিডেন্ট/সরকার প্রধান সম্পর্কে ভুল জানতে পারো। এই ধরনের প্রশ্নে web_search টুল ব্যবহার করো।`,
+    if (!message) {
+      return res.status(400).json({ error: 'মেসেজ পাঠাতে হবে' });
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
       },
-      ...(history || []),
-      { role: 'user', content: message },
-    ];
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-120b',
+        messages: [
+          ...(history || []),
+          { role: 'user', content: message },
+        ],
+      }),
+    });
 
-    let data = await callGroq(messages, true);
+    const data = await response.json();
 
     if (data.error) {
-      data = await callGroq(messages, false);
-    }
-    if (data.error) return res.status(500).json({ error: data.error.message });
-
-    const choice = data.choices[0];
-
-    if (choice.finish_reason === 'tool_calls') {
-      const toolCall = choice.message.tool_calls[0];
-      const args = JSON.parse(toolCall.function.arguments);
-      const searchResults = await webSearch(args.query);
-
-      messages.push(choice.message);
-      messages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        content: searchResults,
-      });
-
-      data = await callGroq(messages, false);
-      if (data.error) return res.status(500).json({ error: data.error.message });
+      console.error('API Error:', data.error);
+      return res.status(500).json({ error: data.error.message });
     }
 
     const reply = data.choices?.[0]?.message?.content || 'কোনো উত্তর পাওয়া যায়নি';
+
     res.json({ reply });
   } catch (err) {
     console.error('Server error:', err);
