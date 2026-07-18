@@ -92,7 +92,30 @@
     margin-bottom: 8px;
   }
   #new-chat-btn:hover { background: var(--border); }
-  .sidebar-spacer { flex: 1; }
+  #recents-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 12px 8px 4px;
+    font-weight: 600;
+  }
+  #recents-list {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  .recent-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recent-item:hover { background: var(--border); }
+  .recent-item.active { background: var(--border); font-weight: 600; }
+  .sidebar-spacer { flex: none; }
   .sidebar-btn {
     display: flex;
     align-items: center;
@@ -288,6 +311,16 @@
     z-index: 50;
   }
   #profile-modal-overlay.show { display: flex; }
+  #about-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  #about-modal-overlay.show { display: flex; }
   #profile-modal {
     background: var(--bg);
     border-radius: 16px;
@@ -435,10 +468,9 @@
 <div id="sidebar">
   <div id="sidebar-header">🤖 MENTIX AI</div>
   <button id="new-chat-btn">+ New Chat</button>
+  <div id="recents-label">Recents</div>
+  <div id="recents-list"></div>
   <div class="sidebar-spacer"></div>
-  <button class="sidebar-btn" id="theme-toggle">
-    <span id="theme-label">🌙 Dark Mode</span>
-  </button>
   <div style="position:relative;">
     <div id="profile-widget">
       <div id="profile-avatar">?</div>
@@ -448,6 +480,11 @@
       </div>
     </div>
     <div id="profile-panel">
+      <div class="panel-item" id="theme-toggle">
+        <span id="theme-label">🌙 Dark Mode</span>
+      </div>
+      <div class="panel-item" id="settings-btn">⚙️ Settings</div>
+      <div class="panel-item" id="about-btn">ℹ️ About</div>
       <div class="panel-item" id="logout-btn">🚪 Log Out</div>
     </div>
   </div>
@@ -511,10 +548,22 @@
 
 <div id="profile-modal-overlay">
   <div id="profile-modal">
-    <h3>Tell us about yourself</h3>
+    <h3 id="profile-modal-title">Tell us about yourself</h3>
     <input type="text" id="profile-name-input" placeholder="Your name" />
     <input type="number" id="profile-age-input" placeholder="Your age" min="1" max="120" />
     <button id="profile-save-btn">Save</button>
+    <button id="profile-cancel-btn" style="display:none; background: var(--border); color: var(--text); margin-top: 8px;">Cancel</button>
+  </div>
+</div>
+
+<div id="about-modal-overlay">
+  <div id="profile-modal">
+    <h3>About Mentix AI</h3>
+    <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+      Mentix AI is a personal AI assistant — chat, generate images, analyze photos, and more.<br><br>
+      Version 1.0
+    </p>
+    <button id="about-close-btn">Close</button>
   </div>
 </div>
 
@@ -525,7 +574,7 @@
     signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
   import {
-    getFirestore, doc, getDoc, setDoc
+    getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -591,6 +640,10 @@
   const profileModalOverlay = document.getElementById('profile-modal-overlay');
   const profileNameInput = document.getElementById('profile-name-input');
   const profileAgeInput = document.getElementById('profile-age-input');
+  const profileModalTitle = document.getElementById('profile-modal-title');
+  const profileCancelBtn = document.getElementById('profile-cancel-btn');
+  let currentProfile = null;
+  let isEditingProfile = false;
 
   async function checkProfile(user) {
     const snap = await getDoc(doc(db, 'users', user.uid));
@@ -598,12 +651,17 @@
       applyProfile(snap.data());
       await loadChatHistory();
     } else {
+      isEditingProfile = false;
+      profileModalTitle.textContent = 'Tell us about yourself';
+      profileCancelBtn.style.display = 'none';
       profileNameInput.value = user.displayName || '';
+      profileAgeInput.value = '';
       profileModalOverlay.classList.add('show');
     }
   }
 
   function applyProfile(profile) {
+    currentProfile = profile;
     document.getElementById('profile-name').textContent = profile.name;
     document.getElementById('profile-age').textContent = `Age: ${profile.age}`;
     document.getElementById('profile-avatar').textContent = profile.name.charAt(0).toUpperCase();
@@ -618,7 +676,13 @@
     await setDoc(doc(db, 'users', currentUserId), { name, age });
     applyProfile({ name, age });
     profileModalOverlay.classList.remove('show');
-    await loadChatHistory();
+    if (!isEditingProfile) {
+      await loadChatHistory();
+    }
+  });
+
+  profileCancelBtn.addEventListener('click', () => {
+    profileModalOverlay.classList.remove('show');
   });
 
   const profileWidget = document.getElementById('profile-widget');
@@ -628,6 +692,27 @@
     profilePanel.classList.toggle('show');
   });
   document.addEventListener('click', () => profilePanel.classList.remove('show'));
+
+  // ---------- Settings (edit profile) ----------
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    profilePanel.classList.remove('show');
+    isEditingProfile = true;
+    profileModalTitle.textContent = 'Edit profile';
+    profileCancelBtn.style.display = 'block';
+    profileNameInput.value = currentProfile ? currentProfile.name : '';
+    profileAgeInput.value = currentProfile ? currentProfile.age : '';
+    profileModalOverlay.classList.add('show');
+  });
+
+  // ---------- About ----------
+  const aboutModalOverlay = document.getElementById('about-modal-overlay');
+  document.getElementById('about-btn').addEventListener('click', () => {
+    profilePanel.classList.remove('show');
+    aboutModalOverlay.classList.add('show');
+  });
+  document.getElementById('about-close-btn').addEventListener('click', () => {
+    aboutModalOverlay.classList.remove('show');
+  });
 
   const welcomeScreen = document.getElementById('welcome-screen');
 
@@ -640,10 +725,33 @@
     chatContainer.style.display = 'flex';
   }
 
-  async function loadChatHistory() {
+  let currentChatId = null;
+
+  async function loadConversationsList() {
     if (!currentUserId) return;
     try {
-      const snap = await getDoc(doc(db, 'chats', currentUserId));
+      const q = query(collection(db, 'chats', currentUserId, 'conversations'), orderBy('updatedAt', 'desc'));
+      const snap = await getDocs(q);
+      const recentsList = document.getElementById('recents-list');
+      recentsList.innerHTML = '';
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const item = document.createElement('div');
+        item.className = 'recent-item';
+        if (docSnap.id === currentChatId) item.classList.add('active');
+        item.textContent = data.title || 'New chat';
+        item.addEventListener('click', () => openConversation(docSnap.id));
+        recentsList.appendChild(item);
+      });
+    } catch (err) {
+      console.error('Conversations list load failed:', err);
+    }
+  }
+
+  async function openConversation(chatId) {
+    try {
+      const snap = await getDoc(doc(db, 'chats', currentUserId, 'conversations', chatId));
+      currentChatId = chatId;
       chatContainer.innerHTML = '';
       if (snap.exists() && Array.isArray(snap.data().messages) && snap.data().messages.length > 0) {
         history = snap.data().messages;
@@ -653,15 +761,48 @@
         history = [];
         showWelcome();
       }
+      sidebar.classList.remove('show');
+      backdrop.classList.remove('show');
+      await loadConversationsList();
+    } catch (err) {
+      console.error('Open conversation failed:', err);
+    }
+  }
+
+  async function loadChatHistory() {
+    if (!currentUserId) return;
+    try {
+      const q = query(collection(db, 'chats', currentUserId, 'conversations'), orderBy('updatedAt', 'desc'));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const first = snap.docs[0];
+        await openConversation(first.id);
+      } else {
+        currentChatId = null;
+        history = [];
+        showWelcome();
+        await loadConversationsList();
+      }
     } catch (err) {
       console.error('History load failed:', err);
     }
   }
 
   async function saveChatHistory() {
-    if (!currentUserId) return;
+    if (!currentUserId || history.length === 0) return;
     try {
-      await setDoc(doc(db, 'chats', currentUserId), { messages: history });
+      const title = history[0].content.slice(0, 40) + (history[0].content.length > 40 ? '…' : '');
+      if (!currentChatId) {
+        const newDoc = await addDoc(collection(db, 'chats', currentUserId, 'conversations'), {
+          title, messages: history, updatedAt: serverTimestamp(),
+        });
+        currentChatId = newDoc.id;
+      } else {
+        await setDoc(doc(db, 'chats', currentUserId, 'conversations', currentChatId), {
+          title, messages: history, updatedAt: serverTimestamp(),
+        });
+      }
+      await loadConversationsList();
     } catch (err) {
       console.error('History save failed:', err);
     }
@@ -688,10 +829,13 @@
   });
 
   document.getElementById('new-chat-btn').addEventListener('click', async () => {
+    currentChatId = null;
     history = [];
     chatContainer.innerHTML = '';
     showWelcome();
-    await saveChatHistory();
+    sidebar.classList.remove('show');
+    backdrop.classList.remove('show');
+    await loadConversationsList();
   });
 
   const BACKEND_URL = 'https://my-ai-app-ahk7.onrender.com/api/chat';
