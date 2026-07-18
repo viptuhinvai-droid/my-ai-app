@@ -283,7 +283,24 @@
     padding: 24px;
   }
   #welcome-screen .icon { font-size: 40px; margin-bottom: 12px; }
-  #welcome-screen h1 { font-size: 26px; font-weight: 600; color: var(--text); }
+  #welcome-screen h1 { font-size: 26px; font-weight: 600; color: var(--text); margin-bottom: 24px; }
+  #starter-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    max-width: 480px;
+  }
+  .starter-chip {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    background: var(--bg);
+  }
+  .starter-chip:hover { background: var(--border); }
 
   /* ---------- Profile widget (sidebar bottom) ---------- */
   #profile-widget {
@@ -566,6 +583,12 @@
     <div id="welcome-screen">
       <div class="icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 3l1.9 4.9L19 9.8l-4.9 1.9L12 17l-1.9-5.3L5 9.8l5.1-1.9z"/></svg></div>
       <h1 id="welcome-text">Welcome</h1>
+      <div id="starter-prompts">
+        <div class="starter-chip" data-prompt="Explain a difficult concept to me in simple terms" data-prompt-bn="আমাকে একটা কঠিন বিষয় সহজভাবে বুঝিয়ে দাও" data-i18n="chipExplain">Explain a concept</div>
+        <div class="starter-chip" data-prompt="Write a short, creative story" data-prompt-bn="একটা ছোট, সৃজনশীল গল্প লেখো" data-i18n="chipStory">Write a story</div>
+        <div class="starter-chip" data-prompt="Help me plan my day and prioritize my tasks" data-prompt-bn="আমার দিনটা পরিকল্পনা করতে সাহায্য করো" data-i18n="chipPlan">Plan my day</div>
+        <div class="starter-chip" data-prompt="Give me a fun fact I probably don't know" data-prompt-bn="আমাকে একটা মজার তথ্য বলো যেটা আমি হয়তো জানি না" data-i18n="chipFunFact">Fun fact</div>
+      </div>
     </div>
     <div id="chat-container" style="display:none;"></div>
     <div id="input-area">
@@ -788,6 +811,7 @@
       langModalDesc: "Changes the app's buttons and menus. Mentix AI will still reply in whatever language you write to it.",
       tellUs: 'Tell us about yourself', editProfile: 'Edit profile', welcome: 'Welcome',
       age: 'Age',
+      chipExplain: 'Explain a concept', chipStory: 'Write a story', chipPlan: 'Plan my day', chipFunFact: 'Fun fact',
     },
     bn: {
       newChat: '+ নতুন চ্যাট', recents: 'সাম্প্রতিক',
@@ -803,6 +827,7 @@
       langModalDesc: 'এটা শুধু অ্যাপের বাটন-মেনু বদলাবে। Mentix AI তুমি যে ভাষায় লিখবে সেই ভাষাতেই উত্তর দেবে।',
       tellUs: 'তোমার সম্পর্কে বলো', editProfile: 'প্রোফাইল এডিট করো', welcome: 'স্বাগতম',
       age: 'বয়স',
+      chipExplain: 'কিছু বুঝিয়ে দাও', chipStory: 'গল্প লেখো', chipPlan: 'দিন পরিকল্পনা', chipFunFact: 'মজার তথ্য',
     },
   };
 
@@ -1140,6 +1165,15 @@
   }
 
   sendBtn.addEventListener('click', handleSend);
+
+  document.querySelectorAll('.starter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      userInput.value = uiLanguage === 'bn' ? chip.dataset.promptBn : chip.dataset.prompt;
+      userInput.dispatchEvent(new Event('input'));
+      userInput.focus();
+    });
+  });
+
   userInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
