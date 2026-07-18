@@ -112,9 +112,49 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    position: relative;
   }
+  .recent-item .recent-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .recent-item .recent-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+  .recent-item:hover .recent-menu-btn { display: block; }
   .recent-item:hover { background: var(--border); }
   .recent-item.active { background: var(--border); font-weight: 600; }
+  .recent-context-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 40;
+    min-width: 130px;
+  }
+  .recent-context-menu.show { display: block; }
+  .recent-context-menu .panel-item {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
   .sidebar-spacer { flex: none; }
   .sidebar-btn {
     display: flex;
@@ -321,6 +361,17 @@
     z-index: 50;
   }
   #about-modal-overlay.show { display: flex; }
+  #language-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  #language-modal-overlay.show { display: flex; }
+  .lang-option.selected { background: var(--accent); color: white; border-color: var(--accent) !important; }
   #profile-modal {
     background: var(--bg);
     border-radius: 16px;
@@ -467,8 +518,8 @@
 <div id="sidebar-backdrop"></div>
 <div id="sidebar">
   <div id="sidebar-header">🤖 MENTIX AI</div>
-  <button id="new-chat-btn">+ New Chat</button>
-  <div id="recents-label">Recents</div>
+  <button id="new-chat-btn" data-i18n="newChat">+ New Chat</button>
+  <div id="recents-label" data-i18n="recents">Recents</div>
   <div id="recents-list"></div>
   <div class="sidebar-spacer"></div>
   <div style="position:relative;">
@@ -481,11 +532,12 @@
     </div>
     <div id="profile-panel">
       <div class="panel-item" id="theme-toggle">
-        <span id="theme-label">🌙 Dark Mode</span>
+        <span id="theme-label" data-i18n="darkMode">🌙 Dark Mode</span>
       </div>
-      <div class="panel-item" id="settings-btn">⚙️ Settings</div>
-      <div class="panel-item" id="about-btn">ℹ️ About</div>
-      <div class="panel-item" id="logout-btn">🚪 Log Out</div>
+      <div class="panel-item" id="settings-btn" data-i18n="settings">⚙️ Settings</div>
+      <div class="panel-item" id="language-btn" data-i18n="language">🌐 Language</div>
+      <div class="panel-item" id="about-btn" data-i18n="about">ℹ️ About</div>
+      <div class="panel-item" id="logout-btn" data-i18n="logOut">🚪 Log Out</div>
     </div>
   </div>
 </div>
@@ -498,16 +550,16 @@
 
   <div id="auth-screen">
     <div id="auth-box">
-      <h2 id="auth-title">Log In</h2>
+      <h2 id="auth-title" data-i18n="logIn">Log In</h2>
       <div id="auth-error"></div>
-      <input type="email" id="email-input" placeholder="Email" />
-      <input type="password" id="password-input" placeholder="Password" />
-      <button class="auth-btn" id="login-btn">Log In</button>
-      <button class="auth-btn" id="signup-btn">Sign Up</button>
-      <div class="divider">or</div>
+      <input type="email" id="email-input" placeholder="Email" data-i18n-ph="email" />
+      <input type="password" id="password-input" placeholder="Password" data-i18n-ph="password" />
+      <button class="auth-btn" id="login-btn" data-i18n="logIn">Log In</button>
+      <button class="auth-btn" id="signup-btn" data-i18n="signUp">Sign Up</button>
+      <div class="divider" data-i18n="or">or</div>
       <button class="auth-btn" id="google-btn">
         <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.2l-6.2-5.2C29.3 35.4 26.8 36 24 36c-5.3 0-9.6-3.4-11.3-8.1l-6.5 5C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C40.8 36 44 30.5 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
-        Continue with Google
+        <span data-i18n="continueGoogle">Continue with Google</span>
       </button>
     </div>
   </div>
@@ -520,13 +572,13 @@
     <div id="chat-container" style="display:none;"></div>
     <div id="input-area">
       <div id="mode-tag">
-        <span id="mode-tag-label">🖼️ Image mode</span>
+        <span id="mode-tag-label" data-i18n="imageMode">🖼️ Image mode</span>
         <span id="mode-tag-close">✕</span>
       </div>
       <div id="plus-menu">
-        <div class="menu-item" id="menu-image-option">🖼️ Image</div>
-        <div class="menu-item" id="menu-photo-option">📷 Photo</div>
-        <div class="menu-item" id="menu-file-option">📄 File</div>
+        <div class="menu-item" id="menu-image-option" data-i18n="menuImage">🖼️ Image</div>
+        <div class="menu-item" id="menu-photo-option" data-i18n="menuPhoto">📷 Photo</div>
+        <div class="menu-item" id="menu-file-option" data-i18n="menuFile">📄 File</div>
       </div>
       <input type="file" id="photo-input" accept="image/*" style="display:none;" />
       <input type="file" id="file-input" accept=".txt,.md,.csv,.json,.js,.py,.html,.css" style="display:none;" />
@@ -534,7 +586,7 @@
         <button id="plus-btn" title="More">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <textarea id="user-input" placeholder="Ask something..." rows="1"></textarea>
+        <textarea id="user-input" placeholder="Ask something..." data-i18n-ph="askSomething" rows="1"></textarea>
         <button id="mic-btn" title="Voice input">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         </button>
@@ -549,21 +601,31 @@
 <div id="profile-modal-overlay">
   <div id="profile-modal">
     <h3 id="profile-modal-title">Tell us about yourself</h3>
-    <input type="text" id="profile-name-input" placeholder="Your name" />
-    <input type="number" id="profile-age-input" placeholder="Your age" min="1" max="120" />
-    <button id="profile-save-btn">Save</button>
-    <button id="profile-cancel-btn" style="display:none; background: var(--border); color: var(--text); margin-top: 8px;">Cancel</button>
+    <input type="text" id="profile-name-input" placeholder="Your name" data-i18n-ph="yourName" />
+    <input type="number" id="profile-age-input" placeholder="Your age" data-i18n-ph="yourAge" min="1" max="120" />
+    <button id="profile-save-btn" data-i18n="save">Save</button>
+    <button id="profile-cancel-btn" style="display:none; background: var(--border); color: var(--text); margin-top: 8px;" data-i18n="cancel">Cancel</button>
   </div>
 </div>
 
 <div id="about-modal-overlay">
   <div id="profile-modal">
-    <h3>About Mentix AI</h3>
+    <h3 data-i18n="aboutTitle">About Mentix AI</h3>
     <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
       Mentix AI is a personal AI assistant — chat, generate images, analyze photos, and more.<br><br>
       Version 1.0
     </p>
-    <button id="about-close-btn">Close</button>
+    <button id="about-close-btn" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="language-modal-overlay">
+  <div id="profile-modal">
+    <h3 data-i18n="langModalTitle">App Language</h3>
+    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;" data-i18n="langModalDesc">Changes the app's buttons and menus. Mentix AI will still reply in whatever language you write to it.</p>
+    <div class="panel-item lang-option" data-lang="en" style="border:1px solid var(--border); margin-bottom:8px;">🇬🇧 English</div>
+    <div class="panel-item lang-option" data-lang="bn" style="border:1px solid var(--border); margin-bottom:8px;">🇧🇩 বাংলা (Bengali)</div>
+    <button id="language-close-btn" style="background: var(--border); color: var(--text);" data-i18n="close">Close</button>
   </div>
 </div>
 
@@ -574,7 +636,7 @@
     signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
   import {
-    getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp
+    getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc
   } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -652,7 +714,7 @@
       await loadChatHistory();
     } else {
       isEditingProfile = false;
-      profileModalTitle.textContent = 'Tell us about yourself';
+      profileModalTitle.textContent = translations[uiLanguage].tellUs;
       profileCancelBtn.style.display = 'none';
       profileNameInput.value = user.displayName || '';
       profileAgeInput.value = '';
@@ -662,10 +724,8 @@
 
   function applyProfile(profile) {
     currentProfile = profile;
-    document.getElementById('profile-name').textContent = profile.name;
-    document.getElementById('profile-age').textContent = `Age: ${profile.age}`;
     document.getElementById('profile-avatar').textContent = profile.name.charAt(0).toUpperCase();
-    document.getElementById('welcome-text').textContent = `Welcome, ${profile.name}`;
+    applyLanguage(profile.uiLanguage || 'en');
   }
 
   document.getElementById('profile-save-btn').addEventListener('click', async () => {
@@ -673,8 +733,8 @@
     const age = profileAgeInput.value.trim();
     if (!name || !age) return;
 
-    await setDoc(doc(db, 'users', currentUserId), { name, age });
-    applyProfile({ name, age });
+    await setDoc(doc(db, 'users', currentUserId), { name, age }, { merge: true });
+    applyProfile({ name, age, uiLanguage });
     profileModalOverlay.classList.remove('show');
     if (!isEditingProfile) {
       await loadChatHistory();
@@ -697,7 +757,7 @@
   document.getElementById('settings-btn').addEventListener('click', () => {
     profilePanel.classList.remove('show');
     isEditingProfile = true;
-    profileModalTitle.textContent = 'Edit profile';
+    profileModalTitle.textContent = translations[uiLanguage].editProfile;
     profileCancelBtn.style.display = 'block';
     profileNameInput.value = currentProfile ? currentProfile.name : '';
     profileAgeInput.value = currentProfile ? currentProfile.age : '';
@@ -712,6 +772,88 @@
   });
   document.getElementById('about-close-btn').addEventListener('click', () => {
     aboutModalOverlay.classList.remove('show');
+  });
+
+  // ---------- Interface (UI) language ----------
+  const translations = {
+    en: {
+      newChat: '+ New Chat', recents: 'Recents',
+      darkMode: '🌙 Dark Mode', lightMode: '☀️ Light Mode',
+      settings: '⚙️ Settings', language: '🌐 Language', about: 'ℹ️ About', logOut: '🚪 Log Out',
+      logIn: 'Log In', email: 'Email', password: 'Password', signUp: 'Sign Up', or: 'or',
+      continueGoogle: 'Continue with Google',
+      yourName: 'Your name', yourAge: 'Your age', save: 'Save', cancel: 'Cancel',
+      aboutTitle: 'About Mentix AI', close: 'Close',
+      askSomething: 'Ask something...', describeImage: 'Describe the image you want...',
+      imageMode: '🖼️ Image mode', menuImage: '🖼️ Image', menuPhoto: '📷 Photo', menuFile: '📄 File',
+      langModalTitle: 'App Language',
+      langModalDesc: "Changes the app's buttons and menus. Mentix AI will still reply in whatever language you write to it.",
+      tellUs: 'Tell us about yourself', editProfile: 'Edit profile', welcome: 'Welcome',
+      age: 'Age',
+    },
+    bn: {
+      newChat: '+ নতুন চ্যাট', recents: 'সাম্প্রতিক',
+      darkMode: '🌙 ডার্ক মোড', lightMode: '☀️ লাইট মোড',
+      settings: '⚙️ সেটিংস', language: '🌐 ভাষা', about: 'ℹ️ সম্পর্কে', logOut: '🚪 লগ আউট',
+      logIn: 'লগইন', email: 'ইমেইল', password: 'পাসওয়ার্ড', signUp: 'সাইন আপ', or: 'অথবা',
+      continueGoogle: 'Google দিয়ে চালিয়ে যান',
+      yourName: 'তোমার নাম', yourAge: 'তোমার বয়স', save: 'সেভ', cancel: 'বাতিল',
+      aboutTitle: 'Mentix AI সম্পর্কে', close: 'বন্ধ',
+      askSomething: 'কিছু জিজ্ঞেস করো...', describeImage: 'তুমি যে ছবি চাও তা বর্ণনা করো...',
+      imageMode: '🖼️ ছবি মোড', menuImage: '🖼️ ছবি', menuPhoto: '📷 ফটো', menuFile: '📄 ফাইল',
+      langModalTitle: 'অ্যাপের ভাষা',
+      langModalDesc: 'এটা শুধু অ্যাপের বাটন-মেনু বদলাবে। Mentix AI তুমি যে ভাষায় লিখবে সেই ভাষাতেই উত্তর দেবে।',
+      tellUs: 'তোমার সম্পর্কে বলো', editProfile: 'প্রোফাইল এডিট করো', welcome: 'স্বাগতম',
+      age: 'বয়স',
+    },
+  };
+
+  let uiLanguage = 'en';
+
+  function applyLanguage(lang) {
+    uiLanguage = lang;
+    const t = translations[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (t[key] !== undefined) el.textContent = t[key];
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+      const key = el.dataset.i18nPh;
+      if (t[key] !== undefined) el.placeholder = t[key];
+    });
+    // Dynamic elements not covered by the generic sweep
+    themeLabel.textContent = currentTheme === 'light' ? t.darkMode : t.lightMode;
+    if (currentProfile) {
+      document.getElementById('profile-name').textContent = currentProfile.name;
+      document.getElementById('profile-age').textContent = `${t.age}: ${currentProfile.age}`;
+      document.getElementById('welcome-text').textContent = `${t.welcome}, ${currentProfile.name}`;
+    }
+  }
+
+  const languageModalOverlay = document.getElementById('language-modal-overlay');
+
+  function updateLangSelection() {
+    document.querySelectorAll('.lang-option').forEach(el => {
+      el.classList.toggle('selected', el.dataset.lang === uiLanguage);
+    });
+  }
+
+  document.getElementById('language-btn').addEventListener('click', () => {
+    profilePanel.classList.remove('show');
+    updateLangSelection();
+    languageModalOverlay.classList.add('show');
+  });
+  document.getElementById('language-close-btn').addEventListener('click', () => {
+    languageModalOverlay.classList.remove('show');
+  });
+  document.querySelectorAll('.lang-option').forEach(el => {
+    el.addEventListener('click', async () => {
+      applyLanguage(el.dataset.lang);
+      updateLangSelection();
+      if (currentUserId) {
+        await setDoc(doc(db, 'users', currentUserId), { uiLanguage }, { merge: true });
+      }
+    });
   });
 
   const welcomeScreen = document.getElementById('welcome-screen');
@@ -739,14 +881,68 @@
         const item = document.createElement('div');
         item.className = 'recent-item';
         if (docSnap.id === currentChatId) item.classList.add('active');
-        item.textContent = data.title || 'New chat';
-        item.addEventListener('click', () => openConversation(docSnap.id));
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'recent-title';
+        titleSpan.textContent = data.title || 'New chat';
+        titleSpan.addEventListener('click', () => openConversation(docSnap.id));
+
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'recent-menu-btn';
+        menuBtn.textContent = '⋮';
+
+        const contextMenu = document.createElement('div');
+        contextMenu.className = 'recent-context-menu';
+        contextMenu.innerHTML = `
+          <div class="panel-item rename-option">✏️ Rename</div>
+          <div class="panel-item delete-option">🗑️ Delete</div>
+        `;
+
+        menuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          document.querySelectorAll('.recent-context-menu.show').forEach(m => {
+            if (m !== contextMenu) m.classList.remove('show');
+          });
+          contextMenu.classList.toggle('show');
+        });
+
+        contextMenu.querySelector('.rename-option').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          contextMenu.classList.remove('show');
+          const newTitle = prompt('Rename chat:', data.title || 'New chat');
+          if (newTitle && newTitle.trim()) {
+            await setDoc(doc(db, 'chats', currentUserId, 'conversations', docSnap.id), { title: newTitle.trim() }, { merge: true });
+            await loadConversationsList();
+          }
+        });
+
+        contextMenu.querySelector('.delete-option').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          contextMenu.classList.remove('show');
+          if (confirm('Delete this chat? This cannot be undone.')) {
+            await deleteDoc(doc(db, 'chats', currentUserId, 'conversations', docSnap.id));
+            if (currentChatId === docSnap.id) {
+              currentChatId = null;
+              history = [];
+              chatContainer.innerHTML = '';
+              showWelcome();
+            }
+            await loadConversationsList();
+          }
+        });
+
+        item.appendChild(titleSpan);
+        item.appendChild(menuBtn);
+        item.appendChild(contextMenu);
         recentsList.appendChild(item);
       });
     } catch (err) {
       console.error('Conversations list load failed:', err);
     }
   }
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.recent-context-menu.show').forEach(m => m.classList.remove('show'));
+  });
 
   async function openConversation(chatId) {
     try {
@@ -814,7 +1010,8 @@
   themeToggle.addEventListener('click', () => {
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
-    themeLabel.textContent = currentTheme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
+    const t = translations[uiLanguage];
+    themeLabel.textContent = currentTheme === 'light' ? t.darkMode : t.lightMode;
   });
 
   const sidebar = document.getElementById('sidebar');
@@ -965,7 +1162,7 @@
     currentMode = 'image';
     modeTagLabel.textContent = '🖼️ Image mode';
     modeTag.classList.add('show');
-    userInput.placeholder = 'Describe the image you want...';
+    userInput.placeholder = translations[uiLanguage].describeImage;
     plusMenu.classList.remove('show');
     userInput.focus();
   });
@@ -973,7 +1170,7 @@
   document.getElementById('mode-tag-close').addEventListener('click', () => {
     currentMode = null;
     modeTag.classList.remove('show');
-    userInput.placeholder = 'Ask something...';
+    userInput.placeholder = translations[uiLanguage].askSomething;
   });
 
   // ---------- Photo upload (vision) ----------
