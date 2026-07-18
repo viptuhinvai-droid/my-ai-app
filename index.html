@@ -354,7 +354,7 @@
     overflow-y: auto;
     line-height: 1.4;
   }
-  #plus-btn, #send-btn {
+  #plus-btn, #send-btn, #mic-btn {
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -368,6 +368,9 @@
   }
   #plus-btn { background: var(--border); color: var(--text); }
   #plus-btn:hover { background: var(--text-muted); color: var(--bg); }
+  #mic-btn { background: transparent; color: var(--text-muted); }
+  #mic-btn:hover { background: var(--border); }
+  #mic-btn.recording { background: #ef4444; color: white; }
   #send-btn { background: var(--accent); color: white; }
   #send-btn:hover { background: var(--accent-hover); }
   #send-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
@@ -416,6 +419,13 @@
     max-width: 100%;
     border-radius: 12px;
     display: block;
+  }
+  .uploaded-thumb {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 12px;
+    display: block;
+    margin-top: 6px;
   }
 </style>
 </head>
@@ -473,15 +483,20 @@
     <div id="chat-container" style="display:none;"></div>
     <div id="input-area">
       <div id="mode-tag">
-        <span>🖼️ Image mode</span>
+        <span id="mode-tag-label">🖼️ Image mode</span>
         <span id="mode-tag-close">✕</span>
       </div>
       <div id="plus-menu">
-        <div class="menu-item" id="menu-image-option">🖼️ Generate image</div>
+        <div class="menu-item" id="menu-image-option">🖼️ Image</div>
+        <div class="menu-item" id="menu-photo-option">📷 Photo</div>
+        <div class="menu-item" id="menu-file-option">📄 File</div>
       </div>
+      <input type="file" id="photo-input" accept="image/*" style="display:none;" />
+      <input type="file" id="file-input" accept=".txt,.md,.csv,.json,.js,.py,.html,.css" style="display:none;" />
       <div id="input-box">
         <button id="plus-btn" title="More">+</button>
         <textarea id="user-input" placeholder="Ask something..." rows="1"></textarea>
+        <button id="mic-btn" title="Voice input">🎤</button>
         <button id="send-btn">➤</button>
       </div>
     </div>
@@ -674,6 +689,7 @@
   });
 
   const BACKEND_URL = 'https://my-ai-app-ahk7.onrender.com/api/chat';
+  const VISION_URL = 'https://my-ai-app-ahk7.onrender.com/api/vision';
   const chatContainer = document.getElementById('chat-container');
   const userInput = document.getElementById('user-input');
   const sendBtn = document.getElementById('send-btn');
@@ -731,7 +747,7 @@
     userInput.focus();
   }
 
-  let imageMode = false;
+  let currentMode = null; // null | 'image'
 
   function generateImage(prompt) {
     showChat();
@@ -764,7 +780,7 @@
     userInput.value = '';
     userInput.style.height = 'auto';
 
-    if (imageMode) {
+    if (currentMode === 'image') {
       generateImage(text);
     } else {
       sendMessage(text);
@@ -787,6 +803,7 @@
   const plusBtn = document.getElementById('plus-btn');
   const plusMenu = document.getElementById('plus-menu');
   const modeTag = document.getElementById('mode-tag');
+  const modeTagLabel = document.getElementById('mode-tag-label');
 
   plusBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -795,7 +812,8 @@
   document.addEventListener('click', () => plusMenu.classList.remove('show'));
 
   document.getElementById('menu-image-option').addEventListener('click', () => {
-    imageMode = true;
+    currentMode = 'image';
+    modeTagLabel.textContent = '🖼️ Image mode';
     modeTag.classList.add('show');
     userInput.placeholder = 'Describe the image you want...';
     plusMenu.classList.remove('show');
@@ -803,11 +821,145 @@
   });
 
   document.getElementById('mode-tag-close').addEventListener('click', () => {
-    imageMode = false;
+    currentMode = null;
     modeTag.classList.remove('show');
     userInput.placeholder = 'Ask something...';
+  });
+
+  // ---------- Photo upload (vision) ----------
+  const photoInput = document.getElementById('photo-input');
+  document.getElementById('menu-photo-option').addEventListener('click', () => {
+    plusMenu.classList.remove('show');
+    photoInput.click();
+  });
+
+  photoInput.addEventListener('change', async () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+    photoInput.value = '';
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Image = reader.result;
+      showChat();
+
+      const userDiv = document.createElement('div');
+      userDiv.className = 'message user';
+      const caption = userInput.value.trim();
+      userDiv.textContent = caption || 'Analyze this photo';
+      const thumb = document.createElement('img');
+      thumb.className = 'uploaded-thumb';
+      thumb.src = base64Image;
+      userDiv.appendChild(thumb);
+      chatContainer.appendChild(userDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      userInput.value = '';
+      userInput.style.height = 'auto';
+
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'typing';
+      typingDiv.textContent = 'Analyzing photo...';
+      chatContainer.appendChild(typingDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      try {
+        const res = await fetch(VISION_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64Image, question: caption || 'What is in this photo?' }),
+        });
+        const data = await res.json();
+        typingDiv.remove();
+        if (data.error) {
+          addMessage('assistant', '⚠️ Error: ' + data.error);
+        } else {
+          addMessage('assistant', data.reply);
+          history.push({ role: 'user', content: caption || 'Analyze this photo' });
+          history.push({ role: 'assistant', content: data.reply });
+          await saveChatHistory();
+        }
+      } catch (err) {
+        typingDiv.remove();
+        addMessage('assistant', '⚠️ Could not connect to the server.');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ---------- File upload (text context) ----------
+  const fileInputEl = document.getElementById('file-input');
+  document.getElementById('menu-file-option').addEventListener('click', () => {
+    plusMenu.classList.remove('show');
+    fileInputEl.click();
+  });
+
+  fileInputEl.addEventListener('change', () => {
+    const file = fileInputEl.files[0];
+    if (!file) return;
+    fileInputEl.value = '';
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      let fileContent = reader.result;
+      if (fileContent.length > 6000) fileContent = fileContent.slice(0, 6000) + '\n...(truncated)';
+
+      showChat();
+      addMessage('user', `📄 Uploaded file: ${file.name}`);
+
+      history.push({
+        role: 'user',
+        content: `I'm uploading a file named "${file.name}". Here is its content:\n\n${fileContent}\n\nPlease keep this in mind for my next questions.`,
+      });
+      history.push({ role: 'assistant', content: `Got it, I've read "${file.name}". What would you like to know about it?` });
+      addMessage('assistant', `Got it, I've read "${file.name}". What would you like to know about it?`);
+      saveChatHistory();
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- Voice input ----------
+  const micBtn = document.getElementById('mic-btn');
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let isRecording = false;
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      userInput.value = (userInput.value ? userInput.value + ' ' : '') + transcript;
+      userInput.dispatchEvent(new Event('input'));
+    };
+    recognition.onend = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+    };
+    recognition.onerror = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+    };
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (!recognition) {
+      alert('Voice input is not supported in this browser.');
+      return;
+    }
+    if (isRecording) {
+      recognition.stop();
+      isRecording = false;
+      micBtn.classList.remove('recording');
+    } else {
+      recognition.start();
+      isRecording = true;
+      micBtn.classList.add('recording');
+    }
   });
 </script>
 
 </body>
 </html>
+

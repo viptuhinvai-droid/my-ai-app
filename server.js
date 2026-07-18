@@ -4,7 +4,7 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 app.post('/api/chat', async (req, res) => {
   try {
@@ -34,6 +34,50 @@ app.post('/api/chat', async (req, res) => {
 
     if (data.error) {
       console.error('API Error:', data.error);
+      return res.status(500).json({ error: data.error.message });
+    }
+
+    const reply = data.choices?.[0]?.message?.content || 'No response received';
+
+    res.json({ reply });
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Server error occurred' });
+  }
+});
+
+app.post('/api/vision', async (req, res) => {
+  try {
+    const { image, question } = req.body;
+
+    if (!image) {
+      return res.status(400).json({ error: 'Image is required' });
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: question || 'Describe this image in detail.' },
+              { type: 'image_url', image_url: { url: image } },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('Vision API Error:', data.error);
       return res.status(500).json({ error: data.error.message });
     }
 
