@@ -321,24 +321,30 @@
   .assistant { align-self: flex-start; background: none; color: var(--text); max-width: 100%; padding: 4px 0; }
   .typing { align-self: flex-start; color: var(--text-muted); font-style: italic; padding: 8px 16px; }
   #input-area {
-    display: flex;
-    align-items: flex-end;
     padding: 16px;
     border-top: 1px solid var(--border);
-    gap: 10px;
     max-width: 720px;
     margin: 0 auto;
     width: 100%;
     flex-shrink: 0;
     box-sizing: border-box;
+    position: relative;
+  }
+  #input-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 8px 8px 12px;
+    background: var(--input-bg);
   }
   #user-input {
     flex: 1;
     min-width: 0;
-    padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--input-bg);
+    padding: 8px 4px;
+    border: none;
+    background: transparent;
     color: var(--text);
     font-size: 15px;
     outline: none;
@@ -348,28 +354,64 @@
     overflow-y: auto;
     line-height: 1.4;
   }
-  #send-btn {
-    padding: 12px 20px;
-    background: var(--accent);
-    color: white;
+  #plus-btn, #send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     border: none;
-    border-radius: 12px;
     cursor: pointer;
-    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    font-size: 18px;
   }
+  #plus-btn { background: var(--border); color: var(--text); }
+  #plus-btn:hover { background: var(--text-muted); color: var(--bg); }
+  #send-btn { background: var(--accent); color: white; }
   #send-btn:hover { background: var(--accent-hover); }
   #send-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
-  #image-btn {
-    padding: 12px 14px;
+
+  #mode-tag {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: var(--border);
+    color: var(--text);
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    width: fit-content;
+  }
+  #mode-tag.show { display: flex; }
+  #mode-tag-close { cursor: pointer; font-weight: 700; }
+
+  #plus-menu {
+    display: none;
+    position: absolute;
+    bottom: 60px;
+    left: 0;
     background: var(--sidebar-bg);
     border: 1px solid var(--border);
     border-radius: 12px;
-    cursor: pointer;
-    font-size: 16px;
-    flex-shrink: 0;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    min-width: 180px;
+    z-index: 20;
   }
-  #image-btn:hover { background: var(--border); }
+  #plus-menu.show { display: block; }
+  #plus-menu .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #plus-menu .menu-item:hover { background: var(--border); }
+
   .generated-image {
     max-width: 100%;
     border-radius: 12px;
@@ -430,9 +472,18 @@
     </div>
     <div id="chat-container" style="display:none;"></div>
     <div id="input-area">
-      <textarea id="user-input" placeholder="Ask something..." rows="1"></textarea>
-      <button id="image-btn" title="Generate image">🖼️</button>
-      <button id="send-btn">Send</button>
+      <div id="mode-tag">
+        <span>🖼️ Image mode</span>
+        <span id="mode-tag-close">✕</span>
+      </div>
+      <div id="plus-menu">
+        <div class="menu-item" id="menu-image-option">🖼️ Generate image</div>
+      </div>
+      <div id="input-box">
+        <button id="plus-btn" title="More">+</button>
+        <textarea id="user-input" placeholder="Ask something..." rows="1"></textarea>
+        <button id="send-btn">➤</button>
+      </div>
     </div>
   </div>
 </div>
@@ -641,15 +692,12 @@
     return div;
   }
 
-  async function sendMessage() {
-    const text = userInput.value.trim();
+  async function sendMessage(text) {
     if (!text) return;
 
     showChat();
     addMessage('user', text);
     history.push({ role: 'user', content: text });
-    userInput.value = '';
-    userInput.style.height = 'auto';
     sendBtn.disabled = true;
 
     const typingDiv = document.createElement('div');
@@ -683,26 +731,11 @@
     userInput.focus();
   }
 
-  sendBtn.addEventListener('click', sendMessage);
-  userInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-  userInput.addEventListener('input', () => {
-    userInput.style.height = 'auto';
-    userInput.style.height = userInput.scrollHeight + 'px';
-  });
+  let imageMode = false;
 
-  // ---------- Image generation ----------
-  document.getElementById('image-btn').addEventListener('click', async () => {
-    const prompt = userInput.value.trim();
-    if (!prompt) return;
-
+  function generateImage(prompt) {
     showChat();
     addMessage('user', '🖼️ Generate image: ' + prompt);
-    userInput.value = '';
 
     const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true&seed=${Date.now()}`;
 
@@ -723,6 +756,56 @@
       div.textContent = '⚠️ Failed to generate image, please try again.';
     };
     img.src = imgUrl;
+  }
+
+  function handleSend() {
+    const text = userInput.value.trim();
+    if (!text) return;
+    userInput.value = '';
+    userInput.style.height = 'auto';
+
+    if (imageMode) {
+      generateImage(text);
+    } else {
+      sendMessage(text);
+    }
+  }
+
+  sendBtn.addEventListener('click', handleSend);
+  userInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  });
+  userInput.addEventListener('input', () => {
+    userInput.style.height = 'auto';
+    userInput.style.height = userInput.scrollHeight + 'px';
+  });
+
+  // ---------- Plus menu ----------
+  const plusBtn = document.getElementById('plus-btn');
+  const plusMenu = document.getElementById('plus-menu');
+  const modeTag = document.getElementById('mode-tag');
+
+  plusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    plusMenu.classList.toggle('show');
+  });
+  document.addEventListener('click', () => plusMenu.classList.remove('show'));
+
+  document.getElementById('menu-image-option').addEventListener('click', () => {
+    imageMode = true;
+    modeTag.classList.add('show');
+    userInput.placeholder = 'Describe the image you want...';
+    plusMenu.classList.remove('show');
+    userInput.focus();
+  });
+
+  document.getElementById('mode-tag-close').addEventListener('click', () => {
+    imageMode = false;
+    modeTag.classList.remove('show');
+    userInput.placeholder = 'Ask something...';
   });
 </script>
 
