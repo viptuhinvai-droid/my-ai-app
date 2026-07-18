@@ -136,15 +136,13 @@
   .recent-item.active { background: var(--border); font-weight: 600; }
   .recent-context-menu {
     display: none;
-    position: absolute;
-    right: 0;
-    top: 100%;
+    position: fixed;
     background: var(--sidebar-bg);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 6px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    z-index: 40;
+    z-index: 100;
     min-width: 130px;
   }
   .recent-context-menu.show { display: block; }
@@ -900,6 +898,9 @@
           document.querySelectorAll('.recent-context-menu.show').forEach(m => {
             if (m !== contextMenu) m.classList.remove('show');
           });
+          const rect = menuBtn.getBoundingClientRect();
+          contextMenu.style.top = (rect.bottom + 4) + 'px';
+          contextMenu.style.left = Math.max(8, rect.right - 130) + 'px';
           contextMenu.classList.toggle('show');
         });
 
