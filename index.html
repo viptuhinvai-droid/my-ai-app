@@ -489,6 +489,39 @@
   #mode-tag.show { display: flex; }
   #mode-tag-close { cursor: pointer; font-weight: 700; }
 
+  #attachment-preview {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+  }
+  #attachment-preview.show { display: flex; }
+  #attachment-preview img {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  #attachment-preview .attachment-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #attachment-remove {
+    cursor: pointer;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    flex-shrink: 0;
+  }
+
   #plus-menu {
     display: none;
     position: absolute;
@@ -603,6 +636,7 @@
       </div>
       <input type="file" id="photo-input" accept="image/*" style="display:none;" />
       <input type="file" id="file-input" accept=".txt,.md,.csv,.json,.js,.py,.html,.css" style="display:none;" />
+      <div id="attachment-preview"></div>
       <div id="input-box">
         <button id="plus-btn" title="More">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1070,6 +1104,7 @@
     history = [];
     chatContainer.innerHTML = '';
     showWelcome();
+    clearAttachment();
     sidebar.classList.remove('show');
     backdrop.classList.remove('show');
     await loadConversationsList();
@@ -1135,6 +1170,149 @@
   }
 
   let currentMode = null; // null | 'image'
+  let attachedImage = null; // base64 string
+  let attachedFile = null;  // { name, content }
+
+  const attachmentPreview = document.getElementById('attachment-preview');
+
+  function showImagePreview(base64) {
+    attachedImage = base64;
+    attachedFile = null;
+    currentMode = null;
+    modeTag.classList.remove('show');
+    userInput.placeholder = translations[uiLanguage].askSomething;
+    attachmentPreview.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = base64;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'attachment-name';
+    nameSpan.textContent = 'Photo attached';
+    const removeBtn = document.createElement('button');
+    removeBtn.id = 'attachment-remove';
+    removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    removeBtn.addEventListener('click', clearAttachment);
+    attachmentPreview.appendChild(img);
+    attachmentPreview.appendChild(nameSpan);
+    attachmentPreview.appendChild(removeBtn);
+    attachmentPreview.classList.add('show');
+    userInput.focus();
+  }
+
+  function showFilePreview(name, content) {
+    attachedFile = { name, content };
+    attachedImage = null;
+    currentMode = null;
+    modeTag.classList.remove('show');
+    userInput.placeholder = translations[uiLanguage].askSomething;
+    attachmentPreview.innerHTML = '';
+    const iconSpan = document.createElement('span');
+    iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'attachment-name';
+    nameSpan.textContent = name;
+    const removeBtn = document.createElement('button');
+    removeBtn.id = 'attachment-remove';
+    removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    removeBtn.addEventListener('click', clearAttachment);
+    attachmentPreview.appendChild(iconSpan);
+    attachmentPreview.appendChild(nameSpan);
+    attachmentPreview.appendChild(removeBtn);
+    attachmentPreview.classList.add('show');
+    userInput.focus();
+  }
+
+  function clearAttachment() {
+    attachedImage = null;
+    attachedFile = null;
+    attachmentPreview.classList.remove('show');
+    attachmentPreview.innerHTML = '';
+  }
+
+  async function sendImageMessage(caption) {
+    const base64Image = attachedImage;
+    clearAttachment();
+    showChat();
+
+    const userDiv = document.createElement('div');
+    userDiv.className = 'message user';
+    userDiv.textContent = caption || 'Analyze this photo';
+    const thumb = document.createElement('img');
+    thumb.className = 'uploaded-thumb';
+    thumb.src = base64Image;
+    userDiv.appendChild(thumb);
+    chatContainer.appendChild(userDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'typing';
+    typingDiv.textContent = 'Analyzing photo...';
+    chatContainer.appendChild(typingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    try {
+      const res = await fetch(VISION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image, question: caption || 'What is in this photo?' }),
+      });
+      const data = await res.json();
+      typingDiv.remove();
+      if (data.error) {
+        addMessage('assistant', 'Error: ' + data.error);
+      } else {
+        addMessage('assistant', data.reply);
+        history.push({ role: 'user', content: caption || 'Analyze this photo' });
+        history.push({ role: 'assistant', content: data.reply });
+        await saveChatHistory();
+      }
+    } catch (err) {
+      typingDiv.remove();
+      addMessage('assistant', 'Could not connect to the server.');
+    }
+  }
+
+  async function sendFileMessage(question) {
+    const { name, content } = attachedFile;
+    clearAttachment();
+    showChat();
+
+    const askText = question || `What can you tell me about this file?`;
+    addMessage('user', `${askText}\n📎 ${name}`);
+    sendBtn.disabled = true;
+
+    const combinedMessage = `I'm sharing a file named "${name}". Here is its content:\n\n${content}\n\n${askText}`;
+    history.push({ role: 'user', content: combinedMessage });
+
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'typing';
+    typingDiv.textContent = 'Thinking...';
+    chatContainer.appendChild(typingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    try {
+      const res = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: combinedMessage, history: history.slice(0, -1) }),
+      });
+      const data = await res.json();
+      typingDiv.remove();
+
+      if (data.error) {
+        addMessage('assistant', 'Error: ' + data.error);
+      } else {
+        addMessage('assistant', data.reply);
+        history.push({ role: 'assistant', content: data.reply });
+        await saveChatHistory();
+      }
+    } catch (err) {
+      typingDiv.remove();
+      addMessage('assistant', 'Could not connect to the server.');
+    }
+
+    sendBtn.disabled = false;
+    userInput.focus();
+  }
 
   function generateImage(prompt) {
     showChat();
@@ -1163,6 +1341,20 @@
 
   function handleSend() {
     const text = userInput.value.trim();
+
+    if (attachedImage) {
+      userInput.value = '';
+      userInput.style.height = 'auto';
+      sendImageMessage(text);
+      return;
+    }
+    if (attachedFile) {
+      userInput.value = '';
+      userInput.style.height = 'auto';
+      sendFileMessage(text);
+      return;
+    }
+
     if (!text) return;
     userInput.value = '';
     userInput.style.height = 'auto';
@@ -1209,7 +1401,7 @@
 
   document.getElementById('menu-image-option').addEventListener('click', () => {
     currentMode = 'image';
-    // mode tag label reset handled by applyLanguage/HTML structure
+    clearAttachment();
     modeTag.classList.add('show');
     userInput.placeholder = translations[uiLanguage].describeImage;
     plusMenu.classList.remove('show');
@@ -1229,55 +1421,14 @@
     photoInput.click();
   });
 
-  photoInput.addEventListener('change', async () => {
+  photoInput.addEventListener('change', () => {
     const file = photoInput.files[0];
     if (!file) return;
     photoInput.value = '';
 
     const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Image = reader.result;
-      showChat();
-
-      const userDiv = document.createElement('div');
-      userDiv.className = 'message user';
-      const caption = userInput.value.trim();
-      userDiv.textContent = caption || 'Analyze this photo';
-      const thumb = document.createElement('img');
-      thumb.className = 'uploaded-thumb';
-      thumb.src = base64Image;
-      userDiv.appendChild(thumb);
-      chatContainer.appendChild(userDiv);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-      userInput.value = '';
-      userInput.style.height = 'auto';
-
-      const typingDiv = document.createElement('div');
-      typingDiv.className = 'typing';
-      typingDiv.textContent = 'Analyzing photo...';
-      chatContainer.appendChild(typingDiv);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-
-      try {
-        const res = await fetch(VISION_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64Image, question: caption || 'What is in this photo?' }),
-        });
-        const data = await res.json();
-        typingDiv.remove();
-        if (data.error) {
-          addMessage('assistant', 'Error: ' + data.error);
-        } else {
-          addMessage('assistant', data.reply);
-          history.push({ role: 'user', content: caption || 'Analyze this photo' });
-          history.push({ role: 'assistant', content: data.reply });
-          await saveChatHistory();
-        }
-      } catch (err) {
-        typingDiv.remove();
-        addMessage('assistant', 'Could not connect to the server.');
-      }
+    reader.onload = () => {
+      showImagePreview(reader.result);
     };
     reader.readAsDataURL(file);
   });
@@ -1298,17 +1449,7 @@
     reader.onload = () => {
       let fileContent = reader.result;
       if (fileContent.length > 6000) fileContent = fileContent.slice(0, 6000) + '\n...(truncated)';
-
-      showChat();
-      addMessage('user', `Uploaded file: ${file.name}`);
-
-      history.push({
-        role: 'user',
-        content: `I'm uploading a file named "${file.name}". Here is its content:\n\n${fileContent}\n\nPlease keep this in mind for my next questions.`,
-      });
-      history.push({ role: 'assistant', content: `Got it, I've read "${file.name}". What would you like to know about it?` });
-      addMessage('assistant', `Got it, I've read "${file.name}". What would you like to know about it?`);
-      saveChatHistory();
+      showFilePreview(file.name, fileContent);
     };
     reader.readAsText(file);
   });
