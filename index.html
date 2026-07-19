@@ -809,7 +809,7 @@
       imageMode: 'Image mode', menuImage: 'Image', menuPhoto: 'Photo', menuFile: 'File',
       langModalTitle: 'App Language',
       langModalDesc: "Changes the app's buttons and menus. Mentix AI will still reply in whatever language you write to it.",
-      tellUs: 'Tell us about yourself', editProfile: 'Edit profile', welcome: 'Welcome',
+      tellUs: 'Tell us about yourself', editProfile: 'Edit profile', welcome: 'Welcome', backAtIt: 'Back at it',
       age: 'Age',
       chipExplain: 'Explain a concept', chipStory: 'Write a story', chipPlan: 'Plan my day', chipFunFact: 'Fun fact',
     },
@@ -825,13 +825,21 @@
       imageMode: 'ছবি মোড', menuImage: 'ছবি', menuPhoto: 'ফটো', menuFile: 'ফাইল',
       langModalTitle: 'অ্যাপের ভাষা',
       langModalDesc: 'এটা শুধু অ্যাপের বাটন-মেনু বদলাবে। Mentix AI তুমি যে ভাষায় লিখবে সেই ভাষাতেই উত্তর দেবে।',
-      tellUs: 'তোমার সম্পর্কে বলো', editProfile: 'প্রোফাইল এডিট করো', welcome: 'স্বাগতম',
+      tellUs: 'তোমার সম্পর্কে বলো', editProfile: 'প্রোফাইল এডিট করো', welcome: 'স্বাগতম', backAtIt: 'আবার ফিরে এসেছো',
       age: 'বয়স',
       chipExplain: 'কিছু বুঝিয়ে দাও', chipStory: 'গল্প লেখো', chipPlan: 'দিন পরিকল্পনা', chipFunFact: 'মজার তথ্য',
     },
   };
 
   let uiLanguage = 'en';
+  let hasChats = false;
+
+  function updateWelcomeText() {
+    if (!currentProfile) return;
+    const t = translations[uiLanguage];
+    const greeting = hasChats ? t.backAtIt : t.welcome;
+    document.getElementById('welcome-text').textContent = `${greeting}, ${currentProfile.name}`;
+  }
 
   function applyLanguage(lang) {
     uiLanguage = lang;
@@ -849,7 +857,7 @@
     if (currentProfile) {
       document.getElementById('profile-name').textContent = currentProfile.name;
       document.getElementById('profile-age').textContent = `${t.age}: ${currentProfile.age}`;
-      document.getElementById('welcome-text').textContent = `${t.welcome}, ${currentProfile.name}`;
+      updateWelcomeText();
     }
   }
 
@@ -897,6 +905,8 @@
     try {
       const q = query(collection(db, 'chats', currentUserId, 'conversations'), orderBy('updatedAt', 'desc'));
       const snap = await getDocs(q);
+      hasChats = !snap.empty;
+      updateWelcomeText();
       const recentsList = document.getElementById('recents-list');
       recentsList.innerHTML = '';
       snap.forEach(docSnap => {
