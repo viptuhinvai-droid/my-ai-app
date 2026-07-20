@@ -491,21 +491,45 @@
 
   #attachment-preview {
     display: none;
+    margin-bottom: 8px;
+  }
+  #attachment-preview.show { display: inline-flex; }
+  #attachment-preview.image-attachment {
+    position: relative;
+    width: 64px;
+    height: 64px;
+  }
+  #attachment-preview.image-attachment img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  #attachment-preview.image-attachment #attachment-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--text);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  #attachment-preview.file-attachment {
     align-items: center;
     gap: 10px;
     background: var(--sidebar-bg);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 8px 10px;
-    margin-bottom: 8px;
+    max-width: 260px;
   }
-  #attachment-preview.show { display: flex; }
-  #attachment-preview img {
-    width: 44px;
-    height: 44px;
-    object-fit: cover;
-    border-radius: 8px;
-  }
+  #attachment-preview.file-attachment.show { display: flex; }
   #attachment-preview .attachment-name {
     flex: 1;
     font-size: 13px;
@@ -1182,19 +1206,15 @@
     modeTag.classList.remove('show');
     userInput.placeholder = translations[uiLanguage].askSomething;
     attachmentPreview.innerHTML = '';
+    attachmentPreview.className = 'image-attachment show';
     const img = document.createElement('img');
     img.src = base64;
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'attachment-name';
-    nameSpan.textContent = 'Photo attached';
     const removeBtn = document.createElement('button');
     removeBtn.id = 'attachment-remove';
-    removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     removeBtn.addEventListener('click', clearAttachment);
     attachmentPreview.appendChild(img);
-    attachmentPreview.appendChild(nameSpan);
     attachmentPreview.appendChild(removeBtn);
-    attachmentPreview.classList.add('show');
     userInput.focus();
   }
 
@@ -1205,8 +1225,9 @@
     modeTag.classList.remove('show');
     userInput.placeholder = translations[uiLanguage].askSomething;
     attachmentPreview.innerHTML = '';
+    attachmentPreview.className = 'file-attachment show';
     const iconSpan = document.createElement('span');
-    iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    iconSpan.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
     const nameSpan = document.createElement('span');
     nameSpan.className = 'attachment-name';
     nameSpan.textContent = name;
@@ -1217,14 +1238,13 @@
     attachmentPreview.appendChild(iconSpan);
     attachmentPreview.appendChild(nameSpan);
     attachmentPreview.appendChild(removeBtn);
-    attachmentPreview.classList.add('show');
     userInput.focus();
   }
 
   function clearAttachment() {
     attachedImage = null;
     attachedFile = null;
-    attachmentPreview.classList.remove('show');
+    attachmentPreview.className = '';
     attachmentPreview.innerHTML = '';
   }
 
